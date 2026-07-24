@@ -1,0 +1,42 @@
+## Visual Studio / Roslyn / Rider cache & temp files
+.vs/
+.idea/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build results / Binaries
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+build/
+
+## Publish output
+publish/
+
+## User-specific / Local settings
+appsettings.Development.json
+appsettings.Local.json
+*.local.json
+
+## NuGet packages & cache
+*.nupkg
+packages/
+.nuget/
+
+## Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Testing & Coverage
+TestResults/
+*.coverage
+*.coveragexml
+
+## Miscellaneous
+*.log
+*.suo
+*.user
+*.userprefs
