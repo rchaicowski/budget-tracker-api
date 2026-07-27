@@ -1,11 +1,16 @@
+using Microsoft.EntityFrameworkCore;
+using BudgetTrackerApi.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Register Services (Dependency Injection)
+// Register DbContext with PostgreSQL Npgsql provider
+builder.Services.AddDbContext<BudgetDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// 2. Configure HTTP Request Pipeline (Middleware)
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
