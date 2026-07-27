@@ -5,10 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+    <!-- Disable preview source generators causing CS0234 build errors -->
+    <EnableRequestDelegateGenerator>false</EnableRequestDelegateGenerator>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
-  </ItemGroup>
 
 </Project>
