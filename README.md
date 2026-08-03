@@ -34,3 +34,16 @@ The database consists of four core tables:
 * [PostgreSQL](https://www.postgresql.org/) database instance running locally or via Docker
 * [Git](https://git-scm.com/)
 
+## API Endpoints
+
+### Users (`/api/Users`)
+* `GET /api/Users` - Retrieve all users
+* `GET /api/Users/{id}` - Retrieve a single user by ID
+* `POST /api/Users` - Create a new user
+
+### Transactions (`/api/Transactions`)
+* `GET /api/Transactions` - Retrieve all transactions
+* `GET /api/Transactions/{id}` - Retrieve a transaction by ID
+* `POST /api/Transactions` - Create a transaction (requires valid `accountId`)
+* `PUT /api/Transactions/{id}` - Update an existing transaction
+* `DELETE /api/Transactions/{id}` - Delete a transaction
