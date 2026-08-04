@@ -1,15 +1,14 @@
 namespace BudgetTrackerApi.DTOs;
 
-// Incoming request payload when creating a transaction
 public class CreateTransactionDto
 {
     public int AccountId { get; set; }
     public decimal Amount { get; set; }
     public string Category { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string Type { get; set; } = "Expense"; // "Income" or "Expense"
 }
 
-// Outgoing JSON payload returned to the client
 public class TransactionResponseDto
 {
     public int Id { get; set; }
@@ -17,5 +16,6 @@ public class TransactionResponseDto
     public decimal Amount { get; set; }
     public string Category { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
     public DateTime Date { get; set; }
 }

@@ -7,8 +7,8 @@ public class Transaction
     public decimal Amount { get; set; }
     public string Category { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string Type { get; set; } = "Expense"; // "Income" or "Expense"
     public DateTime Date { get; set; } = DateTime.UtcNow;
 
-    // Navigation property
     public Account Account { get; set; } = null!;
 }

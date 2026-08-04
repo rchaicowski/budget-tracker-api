@@ -29,6 +29,7 @@ public class TransactionsController : ControllerBase
                 Amount = t.Amount,
                 Category = t.Category,
                 Description = t.Description,
+                Type = t.Type,
                 Date = t.Date
             })
             .ToListAsync();
@@ -54,6 +55,7 @@ public class TransactionsController : ControllerBase
             Amount = transaction.Amount,
             Category = transaction.Category,
             Description = transaction.Description,
+            Type = transaction.Type,
             Date = transaction.Date
         });
     }
@@ -74,6 +76,7 @@ public class TransactionsController : ControllerBase
             Amount = dto.Amount,
             Category = dto.Category,
             Description = dto.Description,
+            Type = dto.Type,
             Date = DateTime.UtcNow
         };
 
@@ -87,6 +90,7 @@ public class TransactionsController : ControllerBase
             Amount = transaction.Amount,
             Category = transaction.Category,
             Description = transaction.Description,
+            Type = transaction.Type,
             Date = transaction.Date
         };
 
@@ -114,6 +118,7 @@ public class TransactionsController : ControllerBase
         transaction.Amount = dto.Amount;
         transaction.Category = dto.Category;
         transaction.Description = dto.Description;
+        transaction.Type = dto.Type;
 
         await _context.SaveChangesAsync();
 
