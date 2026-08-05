@@ -26,8 +26,9 @@ public class TransactionsController : ControllerBase
             {
                 Id = t.Id,
                 AccountId = t.AccountId,
+                CategoryId = t.CategoryId,
+                CategoryName = t.Category.Name,
                 Amount = t.Amount,
-                Category = t.Category,
                 Description = t.Description,
                 Type = t.Type,
                 Date = t.Date
@@ -41,7 +42,9 @@ public class TransactionsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<TransactionResponseDto>> GetTransaction(int id)
     {
-        var transaction = await _context.Transactions.FindAsync(id);
+        var transaction = await _context.Transactions
+            .Include(t => t.Category)
+            .FirstOrDefaultAsync(t => t.Id == id);
 
         if (transaction == null)
         {
@@ -52,8 +55,9 @@ public class TransactionsController : ControllerBase
         {
             Id = transaction.Id,
             AccountId = transaction.AccountId,
+            CategoryId = transaction.CategoryId,
+            CategoryName = transaction.Category.Name,
             Amount = transaction.Amount,
-            Category = transaction.Category,
             Description = transaction.Description,
             Type = transaction.Type,
             Date = transaction.Date
@@ -70,11 +74,17 @@ public class TransactionsController : ControllerBase
             return BadRequest(new { message = $"Account with ID {dto.AccountId} does not exist." });
         }
 
+        var category = await _context.Categories.FindAsync(dto.CategoryId);
+        if (category == null)
+        {
+            return BadRequest(new { message = $"Category with ID {dto.CategoryId} does not exist." });
+        }
+
         var transaction = new Transaction
         {
             AccountId = dto.AccountId,
+            CategoryId = dto.CategoryId,
             Amount = dto.Amount,
-            Category = dto.Category,
             Description = dto.Description,
             Type = dto.Type,
             Date = DateTime.UtcNow
@@ -87,8 +97,9 @@ public class TransactionsController : ControllerBase
         {
             Id = transaction.Id,
             AccountId = transaction.AccountId,
+            CategoryId = transaction.CategoryId,
+            CategoryName = category.Name,
             Amount = transaction.Amount,
-            Category = transaction.Category,
             Description = transaction.Description,
             Type = transaction.Type,
             Date = transaction.Date
@@ -114,15 +125,21 @@ public class TransactionsController : ControllerBase
             return BadRequest(new { message = $"Account with ID {dto.AccountId} does not exist." });
         }
 
+        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+        if (!categoryExists)
+        {
+            return BadRequest(new { message = $"Category with ID {dto.CategoryId} does not exist." });
+        }
+
         transaction.AccountId = dto.AccountId;
+        transaction.CategoryId = dto.CategoryId;
         transaction.Amount = dto.Amount;
-        transaction.Category = dto.Category;
         transaction.Description = dto.Description;
         transaction.Type = dto.Type;
 
         await _context.SaveChangesAsync();
 
-        return NoContent(); // HTTP 204
+        return NoContent();
     }
 
     // DELETE: api/Transactions/5
@@ -139,6 +156,6 @@ public class TransactionsController : ControllerBase
         _context.Transactions.Remove(transaction);
         await _context.SaveChangesAsync();
 
-        return NoContent(); // HTTP 204
+        return NoContent();
     }
 }

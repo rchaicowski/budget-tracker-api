@@ -6,6 +6,7 @@ public class CreateAccountDto
     public string Name { get; set; } = string.Empty;
     public decimal Balance { get; set; }
     public string Currency { get; set; } = "USD";
+    public string AccountType { get; set; } = "Checking";
 }
 
 public class AccountResponseDto
@@ -15,4 +16,5 @@ public class AccountResponseDto
     public string Name { get; set; } = string.Empty;
     public decimal Balance { get; set; }
     public string Currency { get; set; } = string.Empty;
+    public string AccountType { get; set; } = string.Empty;
 }

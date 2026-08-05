@@ -28,7 +28,8 @@ public class AccountsController : ControllerBase
                 UserId = a.UserId,
                 Name = a.Name,
                 Balance = a.Balance,
-                Currency = a.Currency
+                Currency = a.Currency,
+                AccountType = a.AccountType
             })
             .ToListAsync();
 
@@ -52,7 +53,8 @@ public class AccountsController : ControllerBase
             UserId = account.UserId,
             Name = account.Name,
             Balance = account.Balance,
-            Currency = account.Currency
+            Currency = account.Currency,
+            AccountType = account.AccountType
         });
     }
 
@@ -71,7 +73,8 @@ public class AccountsController : ControllerBase
             UserId = dto.UserId,
             Name = dto.Name,
             Balance = dto.Balance,
-            Currency = dto.Currency
+            Currency = dto.Currency,
+            AccountType = dto.AccountType
         };
 
         _context.Accounts.Add(account);
@@ -83,7 +86,8 @@ public class AccountsController : ControllerBase
             UserId = account.UserId,
             Name = account.Name,
             Balance = account.Balance,
-            Currency = account.Currency
+            Currency = account.Currency,
+            AccountType = account.AccountType
         };
 
         return CreatedAtAction(nameof(GetAccount), new { id = account.Id }, response);
