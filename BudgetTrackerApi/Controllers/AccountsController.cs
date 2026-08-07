@@ -21,19 +21,32 @@ public class AccountsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AccountResponseDto>>> GetAccounts()
     {
-        var accounts = await _context.Accounts
-            .Select(a => new AccountResponseDto
-            {
-                Id = a.Id,
-                UserId = a.UserId,
-                Name = a.Name,
-                Balance = a.Balance,
-                Currency = a.Currency,
-                AccountType = a.AccountType
-            })
-            .ToListAsync();
+        var accounts = await _context.Accounts.ToListAsync();
+        var responseList = new List<AccountResponseDto>();
 
-        return Ok(accounts);
+        foreach (var account in accounts)
+        {
+            var income = await _context.Transactions
+                .Where(t => t.AccountId == account.Id && t.Type == "Income")
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+            var expense = await _context.Transactions
+                .Where(t => t.AccountId == account.Id && t.Type == "Expense")
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+            responseList.Add(new AccountResponseDto
+            {
+                Id = account.Id,
+                UserId = account.UserId,
+                Name = account.Name,
+                OpeningBalance = account.Balance,
+                CurrentBalance = account.Balance + income - expense,
+                Currency = account.Currency,
+                AccountType = account.AccountType
+            });
+        }
+
+        return Ok(responseList);
     }
 
     // GET: api/Accounts/5
@@ -47,12 +60,21 @@ public class AccountsController : ControllerBase
             return NotFound(new { message = $"Account with ID {id} not found." });
         }
 
+        var income = await _context.Transactions
+            .Where(t => t.AccountId == id && t.Type == "Income")
+            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+        var expense = await _context.Transactions
+            .Where(t => t.AccountId == id && t.Type == "Expense")
+            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
         return Ok(new AccountResponseDto
         {
             Id = account.Id,
             UserId = account.UserId,
             Name = account.Name,
-            Balance = account.Balance,
+            OpeningBalance = account.Balance,
+            CurrentBalance = account.Balance + income - expense,
             Currency = account.Currency,
             AccountType = account.AccountType
         });
@@ -85,7 +107,8 @@ public class AccountsController : ControllerBase
             Id = account.Id,
             UserId = account.UserId,
             Name = account.Name,
-            Balance = account.Balance,
+            OpeningBalance = account.Balance,
+            CurrentBalance = account.Balance, // New account has 0 transactions
             Currency = account.Currency,
             AccountType = account.AccountType
         };
