@@ -54,7 +54,7 @@ public class UsersController : ControllerBase
         });
     }
 
-    // POST: api/Users
+    // POST: api/Users (Register)
     [HttpPost]
     public async Task<ActionResult<UserResponseDto>> CreateUser(CreateUserDto dto)
     {
@@ -63,11 +63,14 @@ public class UsersController : ControllerBase
             return BadRequest(new { message = "A user with this email already exists." });
         }
 
+        // Real BCrypt Hashing
+        string passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+
         var user = new User
         {
             Username = dto.Username,
             Email = dto.Email,
-            PasswordHash = $"hashed_{dto.Password}"
+            PasswordHash = passwordHash
         };
 
         _context.Users.Add(user);
@@ -82,5 +85,25 @@ public class UsersController : ControllerBase
         };
 
         return CreatedAtAction(nameof(GetUser), new { id = user.Id }, response);
+    }
+
+    // POST: api/Users/login (Login Stub)
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+        if (user == null)
+        {
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
+
+        // Verify plain password against BCrypt hash
+        bool isValidPassword = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
+        if (!isValidPassword)
+        {
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
+
+        return Ok(new { message = "Login successful!", userId = user.Id });
     }
 }

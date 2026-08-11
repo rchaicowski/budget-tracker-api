@@ -7,6 +7,12 @@ public class CreateUserDto
     public string Password { get; set; } = string.Empty;
 }
 
+public class LoginDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+}
+
 public class UserResponseDto
 {
     public int Id { get; set; }
