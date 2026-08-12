@@ -7,10 +7,10 @@
   },
   "AllowedHosts": "*",
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=budget_tracker_dev;Username=postgres;Password=jackass"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=budget_tracker_dev;Username=postgres;Password=CHANGE_ME"
   },
   "Jwt": {
-    "Key": "SuperSecretKeyForBudgetTrackerApi2026ThatIsLongEnoughToPassValidation!",
+    "Key": "CHANGE_ME_MIN_32_CHARACTERS_LONG",
     "Issuer": "BudgetTrackerApi",
     "Audience": "BudgetTrackerUsers",
     "ExpiryMinutes": 60

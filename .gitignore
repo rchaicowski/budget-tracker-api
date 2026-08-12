@@ -16,6 +16,8 @@ build/
 publish/
 
 ## User-specific / Local settings
+appsettings.json
+!appsettings.json.example
 appsettings.Development.json
 appsettings.Local.json
 *.local.json

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,6 +7,7 @@
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
     <!-- Disable preview source generators causing CS0234 build errors -->
     <EnableRequestDelegateGenerator>false</EnableRequestDelegateGenerator>
+    <UserSecretsId>7d02cda8-01dc-4518-b5e9-84937cfa6ac0</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
