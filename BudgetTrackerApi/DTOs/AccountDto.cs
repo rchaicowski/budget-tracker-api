@@ -2,7 +2,6 @@ namespace BudgetTrackerApi.DTOs;
 
 public class CreateAccountDto
 {
-    public int UserId { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Balance { get; set; } // Opening balance
     public string Currency { get; set; } = "USD";

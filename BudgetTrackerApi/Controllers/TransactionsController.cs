@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BudgetTrackerApi.Data;
@@ -6,6 +8,7 @@ using BudgetTrackerApi.DTOs;
 
 namespace BudgetTrackerApi.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TransactionsController : ControllerBase
@@ -17,11 +20,17 @@ public class TransactionsController : ControllerBase
         _context = context;
     }
 
+    private int GetUserId() =>
+        int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
     // GET: api/Transactions
     [HttpGet]
     public async Task<ActionResult<IEnumerable<TransactionResponseDto>>> GetTransactions()
     {
+        var currentUserId = GetUserId();
+
         var transactions = await _context.Transactions
+            .Where(t => t.Account.UserId == currentUserId)
             .Select(t => new TransactionResponseDto
             {
                 Id = t.Id,
@@ -42,9 +51,11 @@ public class TransactionsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<TransactionResponseDto>> GetTransaction(int id)
     {
+        var currentUserId = GetUserId();
+
         var transaction = await _context.Transactions
             .Include(t => t.Category)
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id && t.Account.UserId == currentUserId);
 
         if (transaction == null)
         {
@@ -68,10 +79,15 @@ public class TransactionsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<TransactionResponseDto>> CreateTransaction(CreateTransactionDto dto)
     {
-        var accountExists = await _context.Accounts.AnyAsync(a => a.Id == dto.AccountId);
-        if (!accountExists)
+        var currentUserId = GetUserId();
+
+        // Verify target account actually belongs to the current user!
+        var userOwnsAccount = await _context.Accounts
+            .AnyAsync(a => a.Id == dto.AccountId && a.UserId == currentUserId);
+
+        if (!userOwnsAccount)
         {
-            return BadRequest(new { message = $"Account with ID {dto.AccountId} does not exist." });
+            return BadRequest(new { message = $"Account with ID {dto.AccountId} not found or access denied." });
         }
 
         var category = await _context.Categories.FindAsync(dto.CategoryId);
@@ -112,17 +128,23 @@ public class TransactionsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateTransaction(int id, CreateTransactionDto dto)
     {
-        var transaction = await _context.Transactions.FindAsync(id);
+        var currentUserId = GetUserId();
+
+        var transaction = await _context.Transactions
+            .Include(t => t.Account)
+            .FirstOrDefaultAsync(t => t.Id == id && t.Account.UserId == currentUserId);
 
         if (transaction == null)
         {
             return NotFound(new { message = $"Transaction with ID {id} not found." });
         }
 
-        var accountExists = await _context.Accounts.AnyAsync(a => a.Id == dto.AccountId);
-        if (!accountExists)
+        var userOwnsNewAccount = await _context.Accounts
+            .AnyAsync(a => a.Id == dto.AccountId && a.UserId == currentUserId);
+
+        if (!userOwnsNewAccount)
         {
-            return BadRequest(new { message = $"Account with ID {dto.AccountId} does not exist." });
+            return BadRequest(new { message = $"Account with ID {dto.AccountId} not found or access denied." });
         }
 
         var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
@@ -146,7 +168,11 @@ public class TransactionsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTransaction(int id)
     {
-        var transaction = await _context.Transactions.FindAsync(id);
+        var currentUserId = GetUserId();
+
+        var transaction = await _context.Transactions
+            .Include(t => t.Account)
+            .FirstOrDefaultAsync(t => t.Id == id && t.Account.UserId == currentUserId);
 
         if (transaction == null)
         {

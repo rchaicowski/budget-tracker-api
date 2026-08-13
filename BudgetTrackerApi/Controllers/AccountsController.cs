@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BudgetTrackerApi.Data;
@@ -6,6 +8,7 @@ using BudgetTrackerApi.DTOs;
 
 namespace BudgetTrackerApi.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class AccountsController : ControllerBase
@@ -17,11 +20,18 @@ public class AccountsController : ControllerBase
         _context = context;
     }
 
+    private int GetUserId() =>
+        int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
     // GET: api/Accounts
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AccountResponseDto>>> GetAccounts()
     {
-        var accounts = await _context.Accounts.ToListAsync();
+        var currentUserId = GetUserId();
+        var accounts = await _context.Accounts
+            .Where(a => a.UserId == currentUserId)
+            .ToListAsync();
+
         var responseList = new List<AccountResponseDto>();
 
         foreach (var account in accounts)
@@ -53,7 +63,9 @@ public class AccountsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<AccountResponseDto>> GetAccount(int id)
     {
-        var account = await _context.Accounts.FindAsync(id);
+        var currentUserId = GetUserId();
+        var account = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == currentUserId);
 
         if (account == null)
         {
@@ -84,15 +96,11 @@ public class AccountsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<AccountResponseDto>> CreateAccount(CreateAccountDto dto)
     {
-        var userExists = await _context.Users.AnyAsync(u => u.Id == dto.UserId);
-        if (!userExists)
-        {
-            return BadRequest(new { message = $"User with ID {dto.UserId} does not exist." });
-        }
+        var currentUserId = GetUserId();
 
         var account = new Account
         {
-            UserId = dto.UserId,
+            UserId = currentUserId,
             Name = dto.Name,
             Balance = dto.Balance,
             Currency = dto.Currency,
@@ -108,7 +116,7 @@ public class AccountsController : ControllerBase
             UserId = account.UserId,
             Name = account.Name,
             OpeningBalance = account.Balance,
-            CurrentBalance = account.Balance, // New account has 0 transactions
+            CurrentBalance = account.Balance,
             Currency = account.Currency,
             AccountType = account.AccountType
         };
