@@ -14,11 +14,13 @@ public class UsersController : ControllerBase
 {
     private readonly BudgetDbContext _context;
     private readonly TokenService _tokenService;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(BudgetDbContext context, TokenService tokenService)
+    public UsersController(BudgetDbContext context, TokenService tokenService, ILogger<UsersController> logger)
     {
         _context = context;
         _tokenService = tokenService;
+        _logger = logger;
     }
 
     // GET: api/Users
@@ -101,14 +103,18 @@ public class UsersController : ControllerBase
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
         if (user == null)
         {
+            _logger.LogWarning("Failed login attempt for nonexistent email {Email}", dto.Email);
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
         bool isValidPassword = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
         if (!isValidPassword)
         {
+            _logger.LogWarning("Failed login attempt (invalid password) for user {UserId} ({Email})", user.Id, dto.Email);
             return Unauthorized(new { message = "Invalid email or password." });
         }
+
+        _logger.LogInformation("User {UserId} logged in successfully", user.Id);
 
         var token = _tokenService.GenerateToken(user);
 

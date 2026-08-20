@@ -14,10 +14,12 @@ namespace BudgetTrackerApi.Controllers;
 public class TransactionsController : ControllerBase
 {
     private readonly BudgetDbContext _context;
+    private readonly ILogger<TransactionsController> _logger;
 
-    public TransactionsController(BudgetDbContext context)
+    public TransactionsController(BudgetDbContext context, ILogger<TransactionsController> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     private int GetUserId() =>
@@ -87,6 +89,9 @@ public class TransactionsController : ControllerBase
 
         if (!userOwnsAccount)
         {
+            _logger.LogWarning("IDOR Security Event: User {UserId} attempted unauthorized transaction creation on Account {AccountId}",
+                currentUserId, dto.AccountId);
+
             return BadRequest(new { message = $"Account with ID {dto.AccountId} not found or access denied." });
         }
 
@@ -144,6 +149,9 @@ public class TransactionsController : ControllerBase
 
         if (!userOwnsNewAccount)
         {
+            _logger.LogWarning("IDOR Security Event: User {UserId} attempted updating Transaction {TransactionId} to unauthorized Account {AccountId}",
+                currentUserId, id, dto.AccountId);
+
             return BadRequest(new { message = $"Account with ID {dto.AccountId} not found or access denied." });
         }
 
