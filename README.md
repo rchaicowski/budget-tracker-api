@@ -12,6 +12,7 @@ A RESTful backend API built with **ASP.NET Core** and **PostgreSQL** for managin
 * **Logging:** Serilog (structured console logging, plus request logging)
 * **Testing:** xUnit + EF Core InMemory provider
 * **API Docs:** Swagger / OpenAPI (Swashbuckle), with Bearer auth support in the UI
+* **Containerization:** Docker, Docker Compose (multi-stage build for a lean runtime image)
 * **Version Control:** Git & GitHub
 
 ---
@@ -33,10 +34,24 @@ A RESTful backend API built with **ASP.NET Core** and **PostgreSQL** for managin
 ### Prerequisites
 
 * [.NET SDK](https://dotnet.microsoft.com/download) 10.0 or later
-* [PostgreSQL](https://www.postgresql.org/) running locally (or via Docker, coming soon)
+* [PostgreSQL](https://www.postgresql.org/) running locally, **or** [Docker](https://www.docker.com/) + Docker Compose (see below for the fastest path)
 * [Git](https://git-scm.com/)
 
-### Setup
+### Option A: Docker Compose (fastest)
+
+Spins up the API and a Postgres instance together, no local Postgres install needed:
+
+```bash
+docker compose up --build
+```
+
+The API is available at `http://localhost:8080`, with Swagger UI at `http://localhost:8080/swagger`. Data persists across restarts in a named Docker volume; run `docker compose down -v` to reset it completely.
+
+> **Note:** `docker-compose.yml` uses its own database (`budgettracker`) and hardcoded local-only credentials for convenience — this is intentional for a throwaway local dev database, but is **not** how secrets are handled for the non-Docker setup below (which uses `dotnet user-secrets`), and won't be how this is done once the project deploys to AWS. Don't reuse these credentials anywhere real.
+
+### Option B: Local Postgres + `dotnet run`
+
+If you'd rather run everything locally without Docker:
 
 1. Clone the repo and restore dependencies:
    ```bash
@@ -133,6 +148,6 @@ Most endpoints require a JWT. To authenticate:
 * [ ] Rate limiting on auth endpoints
 * [ ] Receipt attachments (S3)
 * [ ] Recurring transactions worker (Python)
-* [ ] Dockerized local dev environment
+* [x] Dockerized local dev environment
 * [ ] CI/CD via GitHub Actions
 * [ ] AWS deployment
