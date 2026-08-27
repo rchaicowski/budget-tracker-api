@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: budgettracker-db
+    environment:
+      POSTGRES_DB: budgettracker
+      POSTGRES_USER: budget_tracker_app
+      POSTGRES_PASSWORD: postbudget
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: budgettracker-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=budgettracker;Username=budget_tracker_app;Password=postbudget
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
