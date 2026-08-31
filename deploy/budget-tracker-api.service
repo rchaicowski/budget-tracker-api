@@ -1,0 +1,16 @@
+[Unit]
+Description=Budget Tracker API
+After=network.target
+
+[Service]
+WorkingDirectory=/var/www/budget-tracker
+ExecStart=/usr/bin/dotnet /var/www/budget-tracker/BudgetTrackerApi.dll
+Restart=always
+RestartSec=10
+User=http
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://localhost:8080
+Environment=ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=budgettracker;Username=budget_tracker_app;Password=CHANGE_ME"
+
+[Install]
+WantedBy=multi-user.target
