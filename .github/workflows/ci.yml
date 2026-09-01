@@ -20,10 +20,14 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: |
+          dotnet restore BudgetTrackerApi/BudgetTrackerApi.csproj
+          dotnet restore BudgetTrackerApi.Tests/BudgetTrackerApi.Tests.csproj
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: |
+          dotnet build BudgetTrackerApi/BudgetTrackerApi.csproj --no-restore --configuration Release
+          dotnet build BudgetTrackerApi.Tests/BudgetTrackerApi.Tests.csproj --no-restore --configuration Release
 
       - name: Run tests
-        run: dotnet test --no-build --configuration Release
+        run: dotnet test BudgetTrackerApi.Tests/BudgetTrackerApi.Tests.csproj --no-build --configuration Release
