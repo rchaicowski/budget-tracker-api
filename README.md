@@ -1,3 +1,5 @@
+[![CI](https://github.com/rchaicowski/budget-tracker-api/actions/workflows/ci.yml/badge.svg)](https://github.com/rchaicowski/budget-tracker-api/actions/workflows/ci.yml)
+
 # Budget Tracker API
 
 A RESTful backend API built with **ASP.NET Core** and **PostgreSQL** for managing personal finances — accounts, transactions, categories, and (soon) budgets — with JWT authentication and per-user data isolation.
