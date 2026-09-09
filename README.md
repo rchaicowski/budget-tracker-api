@@ -141,6 +141,15 @@ Most endpoints require a JWT. To authenticate:
 
 ---
 
+## CI/CD & Container Registry
+
+* **Continuous Integration:** Every `push` and `pull_request` to `main` triggers a GitHub Actions workflow (`.github/workflows/ci.yml`) that automatically restores, builds, and executes tests across the `.slnx` solution.
+* **Artifact Publishing:** Upon a successful build on `main`, GitHub Actions automatically builds the multi-stage Docker image and publishes it to the GitHub Container Registry (GHCR):
+  ```bash
+  docker pull ghcr.io/rchaicowski/budget-tracker-api:latest
+
+--- 
+
 ## Roadmap
 
 * [ ] Budgets endpoints (monthly limits per category, spend-vs-budget comparison)
@@ -151,5 +160,5 @@ Most endpoints require a JWT. To authenticate:
 * [ ] Receipt attachments (S3)
 * [ ] Recurring transactions worker (Python)
 * [x] Dockerized local dev environment
-* [ ] CI/CD via GitHub Actions
+* [x] CI/CD via GitHub Actions & GHCR container publishing
 * [ ] AWS deployment
