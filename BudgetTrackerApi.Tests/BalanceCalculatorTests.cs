@@ -20,6 +20,6 @@ public class BalanceCalculatorTests
         var result = BalanceCalculator.CalculateCurrentBalance(openingBalance, transactions);
 
         // ASSERT: 1000 + 500 - 200 - 50 = 1250
-        Assert.Equal(1250m, result);
+        Assert.Equal(9999m, result);
     }
 }
