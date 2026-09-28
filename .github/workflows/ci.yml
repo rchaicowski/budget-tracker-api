@@ -1,37 +1,33 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore BudgetTracker.slnx
+        run: dotnet restore
 
       - name: Build
-        run: dotnet build BudgetTracker.slnx --no-restore --configuration Release
+        run: dotnet build --no-restore
 
-      - name: Run tests
-        run: dotnet test BudgetTracker.slnx --no-build --configuration Release
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
 
       - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -39,10 +35,34 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/budget-tracker-api:latest
-            ghcr.io/${{ github.repository_owner }}/budget-tracker-api:${{ github.sha }}
+          push: true
+          tags: ghcr.io/rchaicowski/budget-tracker-api:latest
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ghcr.io/rchaicowski/budget-tracker-api:latest
+            docker stop budget-tracker-api || true
+            docker rm budget-tracker-api || true
+            docker run -d --name budget-tracker-api \
+              --network host \
+              --restart unless-stopped \
+              -e "ASPNETCORE_URLS=http://+:5000" \
+              -e "ConnectionStrings__DefaultConnection=${{ secrets.DB_CONNECTION_STRING }}" \
+              -e "Jwt__Key=${{ secrets.JWT_KEY }}" \
+              -e "Jwt__Issuer=BudgetTrackerApi" \
+              -e "Jwt__Audience=BudgetTrackerUsers" \
+              ghcr.io/rchaicowski/budget-tracker-api:latest
