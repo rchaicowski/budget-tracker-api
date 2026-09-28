@@ -141,12 +141,19 @@ Most endpoints require a JWT. To authenticate:
 
 ---
 
-## CI/CD & Container Registry
+## CI/CD & Deployment
 
-* **Continuous Integration:** Every `push` and `pull_request` to `main` triggers a GitHub Actions workflow (`.github/workflows/ci.yml`) that automatically restores, builds, and executes tests across the `.slnx` solution.
-* **Artifact Publishing:** Upon a successful build on `main`, GitHub Actions automatically builds the multi-stage Docker image and publishes it to the GitHub Container Registry (GHCR):
-  ```bash
-  docker pull ghcr.io/rchaicowski/budget-tracker-api:latest
+This project uses **GitHub Actions** for continuous integration and continuous deployment (CD) to an AWS EC2 instance.
+
+### Pipeline Architecture
+* **Trigger:** Pushes and pull requests targeting the `main` branch.
+* **CI (`build-and-test`):** Restores dependencies, builds the .NET solution, executes tests, and builds a Docker image. On merge to `main`, the image is pushed to GitHub Container Registry (`ghcr.io/rchaicowski/budget-tracker-api:latest`).
+* **CD (`deploy`):** Runs immediately following a successful build on `main`. Uses `appleboy/ssh-action` via dedicated SSH keys to pull the latest GHCR image onto the EC2 host, recreate the container, and bind to port 5000.
+
+### Security & Infrastructure Notes
+* **Runtime:** Containerized .NET application running on Ubuntu 24.04 LTS behind an Nginx reverse proxy.
+* **SSH Authentication:** Uses a dedicated Ed25519 deploy key stored in GitHub Secrets (`EC2_SSH_KEY`). Port 22 access is open to GitHub Actions dynamic runner IPs, relying strictly on key-based authentication with password login disabled.
+* **Configuration:** Environment variables (`DB_CONNECTION_STRING`, `JWT_KEY`, `ASPNETCORE_URLS`) are injected dynamically via GitHub Secrets during container instantiation.
 
 --- 
 
