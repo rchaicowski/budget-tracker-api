@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       
@@ -35,12 +38,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        if: github.ref == 'refs/heads/main'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
-          tags: ghcr.io/rchaicowski/budget-tracker-api:latest
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/rchaicowski/budget-tracker-api:latest
+            ghcr.io/rchaicowski/budget-tracker-api:${{ github.sha }}
 
   deploy:
     needs: build-and-test
