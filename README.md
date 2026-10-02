@@ -1,5 +1,3 @@
-[![CI](https://github.com/rchaicowski/budget-tracker-api/actions/workflows/ci.yml/badge.svg)](https://github.com/rchaicowski/budget-tracker-api/actions/workflows/ci.yml)
-
 # Budget Tracker API
 
 A RESTful backend API built with **ASP.NET Core** and **PostgreSQL** for managing personal finances — accounts, transactions, categories, and (soon) budgets — with JWT authentication and per-user data isolation.
@@ -133,6 +131,19 @@ Most endpoints require a JWT. To authenticate:
 
 ---
 
+## CI/CD & Deployment
+
+* **Continuous Integration:** Every `push` and `pull_request` to `main` triggers a GitHub Actions workflow (`.github/workflows/ci.yml`) that restores, builds, and runs the full test suite.
+* **Artifact Publishing:** On a successful build on `main`, the pipeline builds the multi-stage Docker image and publishes it to the GitHub Container Registry (GHCR), tagged with both `latest` and the immutable commit SHA:
+  ```bash
+  docker pull ghcr.io/rchaicowski/budget-tracker-api:latest
+  ```
+* **Continuous Deployment:** After a successful build and image publish on `main`, the pipeline connects over SSH to the production EC2 instance and redeploys automatically — pulling the newly published image, stopping/removing the previous container, and starting the new one with `--restart unless-stopped`. A push to `main` that passes CI is live in production within minutes, with no manual deployment step.
+* **Branch protection** on `main` requires the CI job to pass before a pull request can be merged, so failing code cannot reach production.
+* **Production infrastructure:** AWS EC2 (Ubuntu) running the API as a Docker container, PostgreSQL (dedicated least-privilege role, not superuser), and Nginx as a reverse proxy terminating port 80 and forwarding to the container.
+
+---
+
 ## Security Notes
 
 * Passwords are hashed with BCrypt; plaintext passwords are never stored or logged.
@@ -140,22 +151,6 @@ Most endpoints require a JWT. To authenticate:
 * Secrets (DB credentials, JWT signing key) are kept out of source control via `dotnet user-secrets` locally; `appsettings.json` in the repo contains placeholder values only.
 
 ---
-
-## CI/CD & Deployment
-
-This project uses **GitHub Actions** for continuous integration and continuous deployment (CD) to an AWS EC2 instance.
-
-### Pipeline Architecture
-* **Trigger:** Pushes and pull requests targeting the `main` branch.
-* **CI (`build-and-test`):** Restores dependencies, builds the .NET solution, executes tests, and builds a Docker image. On merge to `main`, the image is pushed to GitHub Container Registry (`ghcr.io/rchaicowski/budget-tracker-api:latest`).
-* **CD (`deploy`):** Runs immediately following a successful build on `main`. Uses `appleboy/ssh-action` via dedicated SSH keys to pull the latest GHCR image onto the EC2 host, recreate the container, and bind to port 5000.
-
-### Security & Infrastructure Notes
-* **Runtime:** Containerized .NET application running on Ubuntu 24.04 LTS behind an Nginx reverse proxy.
-* **SSH Authentication:** Uses a dedicated Ed25519 deploy key stored in GitHub Secrets (`EC2_SSH_KEY`). Port 22 access is open to GitHub Actions dynamic runner IPs, relying strictly on key-based authentication with password login disabled.
-* **Configuration:** Environment variables (`DB_CONNECTION_STRING`, `JWT_KEY`, `ASPNETCORE_URLS`) are injected dynamically via GitHub Secrets during container instantiation.
-
---- 
 
 ## Roadmap
 
@@ -167,5 +162,5 @@ This project uses **GitHub Actions** for continuous integration and continuous d
 * [ ] Receipt attachments (S3)
 * [ ] Recurring transactions worker (Python)
 * [x] Dockerized local dev environment
-* [x] CI/CD via GitHub Actions & GHCR container publishing
-* [ ] AWS deployment
+* [x] CI/CD via GitHub Actions (build, test, publish to GHCR, auto-deploy on merge to `main`)
+* [x] AWS deployment (EC2 + Nginx + Docker, continuously deployed)
