@@ -11,6 +11,7 @@ public class BudgetDbContext : DbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Budget> Budgets => Set<Budget>(); // <--- Added Budgets set
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
