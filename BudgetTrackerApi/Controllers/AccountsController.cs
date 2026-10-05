@@ -28,35 +28,25 @@ public class AccountsController : ControllerBase
     public async Task<ActionResult<IEnumerable<AccountResponseDto>>> GetAccounts()
     {
         var currentUserId = GetUserId();
+
+        // Single SQL query calculating income and expenses per account directly in DB
         var accounts = await _context.Accounts
             .Where(a => a.UserId == currentUserId)
+            .Select(a => new AccountResponseDto
+            {
+                Id = a.Id,
+                UserId = a.UserId,
+                Name = a.Name,
+                OpeningBalance = a.Balance,
+                CurrentBalance = a.Balance 
+                    + (a.Transactions.Where(t => t.Type == "Income").Sum(t => (decimal?)t.Amount) ?? 0m)
+                    - (a.Transactions.Where(t => t.Type == "Expense").Sum(t => (decimal?)t.Amount) ?? 0m),
+                Currency = a.Currency,
+                AccountType = a.AccountType
+            })
             .ToListAsync();
 
-        var responseList = new List<AccountResponseDto>();
-
-        foreach (var account in accounts)
-        {
-            var income = await _context.Transactions
-                .Where(t => t.AccountId == account.Id && t.Type == "Income")
-                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-
-            var expense = await _context.Transactions
-                .Where(t => t.AccountId == account.Id && t.Type == "Expense")
-                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-
-            responseList.Add(new AccountResponseDto
-            {
-                Id = account.Id,
-                UserId = account.UserId,
-                Name = account.Name,
-                OpeningBalance = account.Balance,
-                CurrentBalance = account.Balance + income - expense,
-                Currency = account.Currency,
-                AccountType = account.AccountType
-            });
-        }
-
-        return Ok(responseList);
+        return Ok(accounts);
     }
 
     // GET: api/Accounts/5
@@ -64,32 +54,29 @@ public class AccountsController : ControllerBase
     public async Task<ActionResult<AccountResponseDto>> GetAccount(int id)
     {
         var currentUserId = GetUserId();
+
         var account = await _context.Accounts
-            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == currentUserId);
+            .Where(a => a.Id == id && a.UserId == currentUserId)
+            .Select(a => new AccountResponseDto
+            {
+                Id = a.Id,
+                UserId = a.UserId,
+                Name = a.Name,
+                OpeningBalance = a.Balance,
+                CurrentBalance = a.Balance 
+                    + (a.Transactions.Where(t => t.Type == "Income").Sum(t => (decimal?)t.Amount) ?? 0m)
+                    - (a.Transactions.Where(t => t.Type == "Expense").Sum(t => (decimal?)t.Amount) ?? 0m),
+                Currency = a.Currency,
+                AccountType = a.AccountType
+            })
+            .FirstOrDefaultAsync();
 
         if (account == null)
         {
             return NotFound(new { message = $"Account with ID {id} not found." });
         }
 
-        var income = await _context.Transactions
-            .Where(t => t.AccountId == id && t.Type == "Income")
-            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-
-        var expense = await _context.Transactions
-            .Where(t => t.AccountId == id && t.Type == "Expense")
-            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-
-        return Ok(new AccountResponseDto
-        {
-            Id = account.Id,
-            UserId = account.UserId,
-            Name = account.Name,
-            OpeningBalance = account.Balance,
-            CurrentBalance = account.Balance + income - expense,
-            Currency = account.Currency,
-            AccountType = account.AccountType
-        });
+        return Ok(account);
     }
 
     // POST: api/Accounts
