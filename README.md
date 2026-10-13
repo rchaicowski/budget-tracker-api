@@ -1,6 +1,6 @@
 # Budget Tracker API
 
-A RESTful backend API built with **ASP.NET Core** and **PostgreSQL** for managing personal finances — accounts, transactions, categories, and (soon) budgets — with JWT authentication and per-user data isolation.
+A RESTful backend API built with **ASP.NET Core** and **PostgreSQL** for managing personal finances — accounts, transactions, categories, and budgets — with JWT authentication and per-user data isolation.
 
 ---
 
@@ -23,7 +23,7 @@ A RESTful backend API built with **ASP.NET Core** and **PostgreSQL** for managin
 * `accounts`: Financial accounts (Checking, Savings, Credit Card) linked to a user. Stores an **opening balance**; current balance is computed from transactions at query time.
 * `categories`: Shared category list (Groceries, Rent, Utilities, Salary, Entertainment, Other), seeded via EF Core migrations.
 * `transactions`: Individual income/expense entries, linked to an account and a category.
-* `budgets`: Per-category monthly spending limits, linked to a user. *(Schema exists; API endpoints not yet implemented — coming in a later phase.)*
+* `budgets`: One spending limit per category per user. Limits are perpetual (they persist until changed); monthly performance is computed on demand from that month's expense transactions rather than stored.
 
 > Schema is managed through EF Core migrations (`Migrations/` folder) rather than a hand-maintained SQL file, so migrations are the source of truth for the current schema.
 
@@ -129,6 +129,11 @@ Most endpoints require a JWT. To authenticate:
 * `PUT /api/Transactions/{id}` — Update a transaction (ownership re-validated on the new account too)
 * `DELETE /api/Transactions/{id}` — Delete a transaction
 
+### Budgets (`/api/Budgets`) — requires authentication
+* `GET /api/Budgets` — List the current user's budgets
+* `POST /api/Budgets` — Create a budget for a category (one per category per user; limit must be greater than 0)
+* `GET /api/Budgets/status` — Spend vs. limit for each budget in the current month, with remaining amount (computed in a single database-side `GroupBy` query)
+
 ---
 
 ## CI/CD & Deployment
@@ -154,7 +159,7 @@ Most endpoints require a JWT. To authenticate:
 
 ## Roadmap
 
-* [ ] Budgets endpoints (monthly limits per category, spend-vs-budget comparison)
+* [x] Budgets endpoints (per-category limits, current-month spend-vs-budget status)
 * [ ] Monthly reports/aggregation endpoint
 * [ ] Filtering & pagination on transaction list
 * [ ] Redis caching
