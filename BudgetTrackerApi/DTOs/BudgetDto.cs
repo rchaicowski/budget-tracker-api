@@ -1,8 +1,13 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BudgetTrackerApi.DTOs;
 
 public class CreateBudgetDto
 {
+    [Required]
     public int CategoryId { get; set; }
+
+    [Range(0.01, (double)decimal.MaxValue, ErrorMessage = "Monthly limit must be greater than 0.")]
     public decimal MonthlyLimit { get; set; }
 }
 
