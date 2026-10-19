@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using BudgetTrackerApi.Controllers;
 using BudgetTrackerApi.Data;
@@ -35,6 +36,32 @@ public class BudgetsControllerTests
         };
 
         return controller;
+    }
+
+    [Theory]
+    [InlineData(0, 100)]            // invalid category
+    [InlineData(1, 0)]              // zero limit
+    [InlineData(1, -50)]            // negative limit
+    [InlineData(1, 99999999999)]    // above database column max
+    public void CreateBudgetDto_InvalidValues_FailValidation(int categoryId, decimal limit)
+    {
+        var dto = new CreateBudgetDto { CategoryId = categoryId, MonthlyLimit = limit };
+        var results = new List<ValidationResult>();
+
+        var isValid = Validator.TryValidateObject(dto, new ValidationContext(dto), results, validateAllProperties: true);
+
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void CreateBudgetDto_ValidValues_PassesValidation()
+    {
+        var dto = new CreateBudgetDto { CategoryId = 1, MonthlyLimit = 300m };
+        var results = new List<ValidationResult>();
+
+        var isValid = Validator.TryValidateObject(dto, new ValidationContext(dto), results, validateAllProperties: true);
+
+        Assert.True(isValid);
     }
 
     [Fact]
