@@ -22,11 +22,17 @@ try
         .Enrich.FromLogContext()
         .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"));
 
-    // 1. Register DbContext with PostgreSQL
+    // 1. Register DbContext with PostgreSQL[cite: 9]
     builder.Services.AddDbContext<BudgetDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    // 2. Register JWT Authentication
+    // 1.5. Register Redis Distributed Cache
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    });
+
+    // 2. Register JWT Authentication[cite: 9]
     var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
     var jwtIssuer = builder.Configuration["Jwt:Issuer"];
     var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -49,7 +55,7 @@ try
     builder.Services.AddScoped<BudgetTrackerApi.Services.TokenService>();
     builder.Services.AddControllers();
 
-    // 3. Register Swagger with Bearer Token support
+    // 3. Register Swagger with Bearer Token support[cite: 9]
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(c =>
     {
@@ -75,7 +81,7 @@ try
 
     app.UseSerilogRequestLogging();
 
-    // 4. Enable Swagger JSON endpoint and Swagger UI
+    // 4. Enable Swagger JSON endpoint and Swagger UI[cite: 9]
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
@@ -84,7 +90,7 @@ try
 
     app.UseHttpsRedirection();
 
-    // 5. Order is crucial: Authentication first, then Authorization
+    // 5. Order is crucial: Authentication first, then Authorization[cite: 9]
     app.UseAuthentication();
     app.UseAuthorization();
 
