@@ -7,6 +7,10 @@ using BudgetTrackerApi.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace BudgetTrackerApi.Tests;
@@ -24,7 +28,11 @@ public class BudgetsControllerTests
 
     private BudgetsController SetupControllerWithUser(BudgetDbContext context, int userId)
     {
-        var controller = new BudgetsController(context);
+        // Provide an in-memory distributed cache and null logger for unit testing
+        IDistributedCache cache = new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
+        var logger = NullLogger<BudgetsController>.Instance;
+
+        var controller = new BudgetsController(context, cache, logger);
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, userId.ToString())

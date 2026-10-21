@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using System.Text.Json;
 using BudgetTrackerApi.Data;
 using BudgetTrackerApi.DTOs;
 using BudgetTrackerApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace BudgetTrackerApi.Controllers;
 
@@ -14,10 +16,14 @@ namespace BudgetTrackerApi.Controllers;
 public class BudgetsController : ControllerBase
 {
     private readonly BudgetDbContext _context;
+    private readonly IDistributedCache _cache;
+    private readonly ILogger<BudgetsController> _logger;
 
-    public BudgetsController(BudgetDbContext context)
+    public BudgetsController(BudgetDbContext context, IDistributedCache cache, ILogger<BudgetsController> logger)
     {
         _context = context;
+        _cache = cache;
+        _logger = logger;
     }
 
     private int GetUserId()
@@ -80,6 +86,18 @@ public class BudgetsController : ControllerBase
         _context.Budgets.Add(budget);
         await _context.SaveChangesAsync();
 
+        // Invalidate cache for current month's budget status
+        var now = DateTime.UtcNow;
+        var cacheKey = $"budget-status:{userId}:{now.Year}-{now.Month}";
+        try
+        {
+            await _cache.RemoveAsync(cacheKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to invalidate Redis cache for key {CacheKey}", cacheKey);
+        }
+
         var response = new BudgetResponseDto
         {
             Id = budget.Id,
@@ -96,14 +114,36 @@ public class BudgetsController : ControllerBase
     {
         var userId = GetUserId();
         var now = DateTime.UtcNow;
+        var cacheKey = $"budget-status:{userId}:{now.Year}-{now.Month}";
 
+        // 1. Try to fetch from Redis cache
+        try
+        {
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                _logger.LogInformation("Cache hit for key {CacheKey}", cacheKey);
+                var cachedResult = JsonSerializer.Deserialize<IEnumerable<BudgetResponseDto>>(cachedData);
+                if (cachedResult != null)
+                {
+                    return Ok(cachedResult);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis cache failure; falling back to database query.");
+        }
+
+        _logger.LogInformation("Cache miss for key {CacheKey}. Querying database.", cacheKey);
+
+        // 2. Cache miss: Query database
         var budgets = await _context.Budgets
             .Where(b => b.UserId == userId)
             .ToListAsync();
 
         var categories = await _context.Categories.ToDictionaryAsync(c => c.Id, c => c.Name);
 
-        // Single query GroupBy aggregation across all transactions for current month
         var spendByCategory = await _context.Transactions
             .Where(t => t.Account.UserId == userId
                         && t.Type == "Expense"
@@ -124,7 +164,22 @@ public class BudgetsController : ControllerBase
                 MonthlyLimit = b.AmountLimit,
                 CurrentSpend = currentSpend
             };
-        });
+        }).ToList();
+
+        // 3. Store result in Redis cache (expire in 5 minutes)
+        try
+        {
+            var serializedData = JsonSerializer.Serialize(result);
+            var options = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+            };
+            await _cache.SetStringAsync(cacheKey, serializedData, options);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write to Redis cache for key {CacheKey}", cacheKey);
+        }
 
         return Ok(result);
     }
