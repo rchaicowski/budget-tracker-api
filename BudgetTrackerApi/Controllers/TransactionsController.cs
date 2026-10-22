@@ -2,9 +2,11 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using BudgetTrackerApi.Data;
 using BudgetTrackerApi.Models;
 using BudgetTrackerApi.DTOs;
+using BudgetTrackerApi.Helpers;
 
 namespace BudgetTrackerApi.Controllers;
 
@@ -14,16 +16,32 @@ namespace BudgetTrackerApi.Controllers;
 public class TransactionsController : ControllerBase
 {
     private readonly BudgetDbContext _context;
+    private readonly IDistributedCache _cache;
     private readonly ILogger<TransactionsController> _logger;
 
-    public TransactionsController(BudgetDbContext context, ILogger<TransactionsController> logger)
+    public TransactionsController(BudgetDbContext context, IDistributedCache cache, ILogger<TransactionsController> logger)
     {
         _context = context;
+        _cache = cache;
         _logger = logger;
     }
 
     private int GetUserId() =>
         int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+    private async Task InvalidateBudgetStatusCacheAsync(int userId)
+    {
+        var now = DateTime.UtcNow;
+        var cacheKey = CacheKeyHelper.GetBudgetStatusKey(userId, now.Year, now.Month);
+        try
+        {
+            await _cache.RemoveAsync(cacheKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to invalidate Redis cache for key {CacheKey}", cacheKey);
+        }
+    }
 
     // GET: api/Transactions
     [HttpGet]
@@ -83,7 +101,6 @@ public class TransactionsController : ControllerBase
     {
         var currentUserId = GetUserId();
 
-        // Verify target account actually belongs to the current user!
         var userOwnsAccount = await _context.Accounts
             .AnyAsync(a => a.Id == dto.AccountId && a.UserId == currentUserId);
 
@@ -113,6 +130,9 @@ public class TransactionsController : ControllerBase
 
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
+
+        // Invalidate budget status cache on create
+        await InvalidateBudgetStatusCacheAsync(currentUserId);
 
         var response = new TransactionResponseDto
         {
@@ -169,6 +189,9 @@ public class TransactionsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        // Invalidate budget status cache on update
+        await InvalidateBudgetStatusCacheAsync(currentUserId);
+
         return NoContent();
     }
 
@@ -189,6 +212,9 @@ public class TransactionsController : ControllerBase
 
         _context.Transactions.Remove(transaction);
         await _context.SaveChangesAsync();
+
+        // Invalidate budget status cache on delete
+        await InvalidateBudgetStatusCacheAsync(currentUserId);
 
         return NoContent();
     }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using BudgetTrackerApi.Data;
 using BudgetTrackerApi.DTOs;
+using BudgetTrackerApi.Helpers;
 using BudgetTrackerApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -86,9 +87,9 @@ public class BudgetsController : ControllerBase
         _context.Budgets.Add(budget);
         await _context.SaveChangesAsync();
 
-        // Invalidate cache for current month's budget status
+        // Invalidate cache for current month's budget status using centralized helper
         var now = DateTime.UtcNow;
-        var cacheKey = $"budget-status:{userId}:{now.Year}-{now.Month}";
+        var cacheKey = CacheKeyHelper.GetBudgetStatusKey(userId, now.Year, now.Month);
         try
         {
             await _cache.RemoveAsync(cacheKey);
@@ -114,7 +115,7 @@ public class BudgetsController : ControllerBase
     {
         var userId = GetUserId();
         var now = DateTime.UtcNow;
-        var cacheKey = $"budget-status:{userId}:{now.Year}-{now.Month}";
+        var cacheKey = CacheKeyHelper.GetBudgetStatusKey(userId, now.Year, now.Month);
 
         // 1. Try to fetch from Redis cache
         try

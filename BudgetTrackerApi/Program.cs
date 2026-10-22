@@ -22,17 +22,17 @@ try
         .Enrich.FromLogContext()
         .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"));
 
-    // 1. Register DbContext with PostgreSQL[cite: 9]
+    // 1. Register DbContext with PostgreSQL
     builder.Services.AddDbContext<BudgetDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    // 1.5. Register Redis Distributed Cache
+    // 1.5. Register Redis Distributed Cache with fast timeouts
     builder.Services.AddStackExchangeRedisCache(options =>
     {
-        options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379,abortConnect=false,connectTimeout=1000,syncTimeout=1000";
     });
 
-    // 2. Register JWT Authentication[cite: 9]
+    // 2. Register JWT Authentication
     var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
     var jwtIssuer = builder.Configuration["Jwt:Issuer"];
     var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -55,7 +55,7 @@ try
     builder.Services.AddScoped<BudgetTrackerApi.Services.TokenService>();
     builder.Services.AddControllers();
 
-    // 3. Register Swagger with Bearer Token support[cite: 9]
+    // 3. Register Swagger with Bearer Token support
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(c =>
     {
@@ -81,7 +81,7 @@ try
 
     app.UseSerilogRequestLogging();
 
-    // 4. Enable Swagger JSON endpoint and Swagger UI[cite: 9]
+    // 4. Enable Swagger JSON endpoint and Swagger UI
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
@@ -90,7 +90,7 @@ try
 
     app.UseHttpsRedirection();
 
-    // 5. Order is crucial: Authentication first, then Authorization[cite: 9]
+    // 5. Order is crucial: Authentication first, then Authorization
     app.UseAuthentication();
     app.UseAuthorization();
 
