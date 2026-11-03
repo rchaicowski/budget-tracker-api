@@ -3,6 +3,7 @@ using System.Security.Claims;
 using BudgetTrackerApi.Controllers;
 using BudgetTrackerApi.Data;
 using BudgetTrackerApi.DTOs;
+using BudgetTrackerApi.Helpers;
 using BudgetTrackerApi.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -26,9 +27,8 @@ public class BudgetsControllerTests
         return new BudgetDbContext(options);
     }
 
-    private BudgetsController SetupControllerWithUser(BudgetDbContext context, int userId)
+    private (BudgetsController Controller, IDistributedCache Cache) SetupControllerWithCache(BudgetDbContext context, int userId)
     {
-        // Provide an in-memory distributed cache and null logger for unit testing
         IDistributedCache cache = new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
         var logger = NullLogger<BudgetsController>.Instance;
 
@@ -43,7 +43,7 @@ public class BudgetsControllerTests
             HttpContext = new DefaultHttpContext { User = user }
         };
 
-        return controller;
+        return (controller, cache);
     }
 
     [Theory]
@@ -101,7 +101,7 @@ public class BudgetsControllerTests
         );
         await context.SaveChangesAsync();
 
-        var controller = SetupControllerWithUser(context, userId);
+        var (controller, _) = SetupControllerWithCache(context, userId);
 
         var actionResult = await controller.GetBudgetStatus();
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -111,5 +111,62 @@ public class BudgetsControllerTests
         Assert.Equal(300m, groceryBudget.MonthlyLimit);
         Assert.Equal(150m, groceryBudget.CurrentSpend);
         Assert.Equal(150m, groceryBudget.RemainingAmount);
+    }
+
+    [Fact]
+    public async Task GetBudgetStatus_ServesFromCacheAndInvalidatesOnCreateBudget()
+    {
+        var context = GetInMemoryDbContext();
+        var userId = 1;
+
+        var category = new Category { Id = 1, Name = "Utilities" };
+        var account = new Account { Id = 1, UserId = userId, Name = "Checking" };
+        context.Categories.Add(category);
+        context.Accounts.Add(account);
+
+        var budget = new Budget
+        {
+            Id = 1,
+            UserId = userId,
+            CategoryId = 1,
+            AmountLimit = 500m
+        };
+        context.Budgets.Add(budget);
+        await context.SaveChangesAsync();
+
+        var (controller, cache) = SetupControllerWithCache(context, userId);
+
+        // 1. First call populates cache
+        var firstResult = await controller.GetBudgetStatus();
+        var ok1 = Assert.IsType<OkObjectResult>(firstResult.Result);
+        var list1 = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(ok1.Value).ToList();
+        Assert.Equal(500m, list1[0].MonthlyLimit);
+
+        // Modify database behind the scenes (simulating direct change)
+        budget.AmountLimit = 600m;
+        await context.SaveChangesAsync();
+
+        // 2. Second call should return cached value (500m) instead of updated DB value (600m)
+        var cachedResult = await controller.GetBudgetStatus();
+        var okCached = Assert.IsType<OkObjectResult>(cachedResult.Result);
+        var listCached = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(okCached.Value).ToList();
+        Assert.Equal(500m, listCached[0].MonthlyLimit);
+
+        // 3. Create a new budget to trigger cache invalidation
+        var newCategory = new Category { Id = 2, Name = "Entertainment" };
+        context.Categories.Add(newCategory);
+        await context.SaveChangesAsync();
+
+        var createDto = new CreateBudgetDto { CategoryId = 2, MonthlyLimit = 200m };
+        await controller.CreateBudget(createDto);
+
+        // 4. Subsequent status call should pull fresh data reflecting the invalidation
+        var refreshedResult = await controller.GetBudgetStatus();
+        var okRefreshed = Assert.IsType<OkObjectResult>(refreshedResult.Result);
+        var listRefreshed = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(okRefreshed.Value).ToList();
+        
+        // Should now contain both budgets with updated DB values
+        Assert.Equal(2, listRefreshed.Count);
+        Assert.Equal(600m, listRefreshed.First(b => b.CategoryId == 1).MonthlyLimit);
     }
 }

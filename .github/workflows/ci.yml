@@ -61,13 +61,13 @@ jobs:
             docker pull redis:7-alpine
             docker pull ghcr.io/rchaicowski/budget-tracker-api:latest
 
-            # Run Redis container on host network
+            # Run secured Redis container bound to loopback with memory limit and LRU eviction
             docker stop budget-tracker-redis || true
             docker rm budget-tracker-redis || true
             docker run -d --name budget-tracker-redis \
               --network host \
               --restart unless-stopped \
-              redis:7-alpine
+              redis:7-alpine redis-server --bind 127.0.0.1 --maxmemory 64mb --maxmemory-policy allkeys-lru
 
             # Run API container on host network with Redis connection configured
             docker stop budget-tracker-api || true
