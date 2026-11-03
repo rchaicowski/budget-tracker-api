@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
 using BudgetTrackerApi.Data;
+using StackExchange.Redis;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -26,10 +27,16 @@ try
     builder.Services.AddDbContext<BudgetDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    // 1.5. Register Redis Distributed Cache with fast timeouts
+    // 1.5. Register Redis Distributed Cache with forced fail-fast timeouts
     builder.Services.AddStackExchangeRedisCache(options =>
     {
-        options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379,abortConnect=false,connectTimeout=1000,syncTimeout=1000";
+        var rawConn = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        var redisOptions = ConfigurationOptions.Parse(rawConn);
+        redisOptions.AbortOnConnectFail = false;
+        redisOptions.ConnectTimeout = 1000;
+        redisOptions.SyncTimeout = 1000;
+        redisOptions.AsyncTimeout = 1000;
+        options.ConfigurationOptions = redisOptions;
     });
 
     // 2. Register JWT Authentication
