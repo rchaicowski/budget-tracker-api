@@ -165,8 +165,42 @@ public class BudgetsControllerTests
         var okRefreshed = Assert.IsType<OkObjectResult>(refreshedResult.Result);
         var listRefreshed = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(okRefreshed.Value).ToList();
         
-        // Should now contain both budgets with updated DB values
         Assert.Equal(2, listRefreshed.Count);
         Assert.Equal(600m, listRefreshed.First(b => b.CategoryId == 1).MonthlyLimit);
+    }
+
+    [Fact]
+    public async Task CreateTransaction_InvalidatesCachedBudgetStatus()
+    {
+        var context = GetInMemoryDbContext();
+        var userId = 1;
+        context.Categories.Add(new Category { Id = 1, Name = "Groceries" });
+        context.Accounts.Add(new Account { Id = 1, UserId = userId, Name = "Checking" });
+        context.Budgets.Add(new Budget { Id = 1, UserId = userId, CategoryId = 1, AmountLimit = 300m });
+        await context.SaveChangesAsync();
+
+        var (budgetsController, cache) = SetupControllerWithCache(context, userId);
+        var transactionsController = new TransactionsController(
+            context, cache, NullLogger<TransactionsController>.Instance)
+        {
+            ControllerContext = budgetsController.ControllerContext
+        };
+
+        // Populate the cache: nothing spent yet
+        var first = await budgetsController.GetBudgetStatus();
+        var before = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(
+            Assert.IsType<OkObjectResult>(first.Result).Value).Single();
+        Assert.Equal(0m, before.CurrentSpend);
+
+        // A new expense should clear the cached status
+        await transactionsController.CreateTransaction(new CreateTransactionDto
+        {
+            AccountId = 1, CategoryId = 1, Amount = 40m, Description = "Test", Type = "Expense"
+        });
+
+        var second = await budgetsController.GetBudgetStatus();
+        var after = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(
+            Assert.IsType<OkObjectResult>(second.Result).Value).Single();
+        Assert.Equal(40m, after.CurrentSpend);
     }
 }

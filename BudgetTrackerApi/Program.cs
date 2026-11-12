@@ -27,10 +27,10 @@ try
     builder.Services.AddDbContext<BudgetDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    // 1.5. Register Redis Distributed Cache with forced fail-fast timeouts
+    // 1.5. Register Redis Distributed Cache with forced fail-fast timeouts and IPv4 loopback address
     builder.Services.AddStackExchangeRedisCache(options =>
     {
-        var rawConn = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        var rawConn = builder.Configuration.GetConnectionString("Redis") ?? "127.0.0.1:6379";
         var redisOptions = ConfigurationOptions.Parse(rawConn);
         redisOptions.AbortOnConnectFail = false;
         redisOptions.ConnectTimeout = 1000;
