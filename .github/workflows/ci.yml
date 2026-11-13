@@ -77,7 +77,7 @@ jobs:
               --restart unless-stopped \
               -e "ASPNETCORE_URLS=http://+:5000" \
               -e "ConnectionStrings__DefaultConnection=${{ secrets.DB_CONNECTION_STRING }}" \
-              -e "ConnectionStrings__Redis=localhost:6379,abortConnect=false,connectTimeout=1000,syncTimeout=1000" \
+              -e "ConnectionStrings__Redis=127.0.0.1:6379,abortConnect=false,connectTimeout=1000,syncTimeout=1000" \
               -e "Jwt__Key=${{ secrets.JWT_KEY }}" \
               -e "Jwt__Issuer=BudgetTrackerApi" \
               -e "Jwt__Audience=BudgetTrackerUsers" \
