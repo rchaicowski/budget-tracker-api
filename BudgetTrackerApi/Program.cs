@@ -33,9 +33,10 @@ try
         var rawConn = builder.Configuration.GetConnectionString("Redis") ?? "127.0.0.1:6379";
         var redisOptions = ConfigurationOptions.Parse(rawConn);
         redisOptions.AbortOnConnectFail = false;
-        redisOptions.ConnectTimeout = 1000;
-        redisOptions.SyncTimeout = 1000;
-        redisOptions.AsyncTimeout = 1000;
+        redisOptions.ConnectTimeout = 250;
+        redisOptions.SyncTimeout = 250;
+        redisOptions.AsyncTimeout = 250;
+        redisOptions.ConnectRetry = 1;
         options.ConfigurationOptions = redisOptions;
     });
 
