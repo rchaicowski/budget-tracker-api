@@ -116,6 +116,7 @@ public class BudgetsController : ControllerBase
         var userId = GetUserId();
         var now = DateTime.UtcNow;
         var cacheKey = CacheKeyHelper.GetBudgetStatusKey(userId, now.Year, now.Month);
+        var cacheAvailable = true;
 
         // 1. Try to fetch from Redis cache
         try
@@ -133,6 +134,7 @@ public class BudgetsController : ControllerBase
         }
         catch (Exception ex)
         {
+            cacheAvailable = false;
             _logger.LogWarning(ex, "Redis cache failure; falling back to database query.");
         }
 
@@ -167,19 +169,22 @@ public class BudgetsController : ControllerBase
             };
         }).ToList();
 
-        // 3. Store result in Redis cache (expire in 5 minutes)
-        try
+        // 3. Store result in Redis cache (skip if the read already failed)
+        if (cacheAvailable)
         {
-            var serializedData = JsonSerializer.Serialize(result);
-            var options = new DistributedCacheEntryOptions
+            try
             {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
-            };
-            await _cache.SetStringAsync(cacheKey, serializedData, options);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to write to Redis cache for key {CacheKey}", cacheKey);
+                var serializedData = JsonSerializer.Serialize(result);
+                var options = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                };
+                await _cache.SetStringAsync(cacheKey, serializedData, options);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to write to Redis cache for key {CacheKey}", cacheKey);
+            }
         }
 
         return Ok(result);
