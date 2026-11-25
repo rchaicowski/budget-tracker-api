@@ -18,6 +18,20 @@ namespace BudgetTrackerApi.Tests;
 
 public class BudgetsControllerTests
 {
+    private sealed class ThrowingCache : IDistributedCache
+    {
+        private static InvalidOperationException Down() => new("Redis down");
+
+        public byte[]? Get(string key) => throw Down();
+        public Task<byte[]?> GetAsync(string key, CancellationToken token = default) => throw Down();
+        public void Refresh(string key) => throw Down();
+        public Task RefreshAsync(string key, CancellationToken token = default) => throw Down();
+        public void Remove(string key) => throw Down();
+        public Task RemoveAsync(string key, CancellationToken token = default) => throw Down();
+        public void Set(string key, byte[] value, DistributedCacheEntryOptions options) => throw Down();
+        public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default) => throw Down();
+    }
+
     private BudgetDbContext GetInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<BudgetDbContext>()
@@ -44,6 +58,24 @@ public class BudgetsControllerTests
         };
 
         return (controller, cache);
+    }
+
+    private BudgetsController SetupControllerWithCustomCache(BudgetDbContext context, IDistributedCache cache, int userId)
+    {
+        var logger = NullLogger<BudgetsController>.Instance;
+
+        var controller = new BudgetsController(context, cache, logger);
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+        }, "TestAuthentication"));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        return controller;
     }
 
     [Theory]
@@ -164,7 +196,7 @@ public class BudgetsControllerTests
         var refreshedResult = await controller.GetBudgetStatus();
         var okRefreshed = Assert.IsType<OkObjectResult>(refreshedResult.Result);
         var listRefreshed = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(okRefreshed.Value).ToList();
-        
+
         Assert.Equal(2, listRefreshed.Count);
         Assert.Equal(600m, listRefreshed.First(b => b.CategoryId == 1).MonthlyLimit);
     }
@@ -202,5 +234,59 @@ public class BudgetsControllerTests
         var after = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(
             Assert.IsType<OkObjectResult>(second.Result).Value).Single();
         Assert.Equal(40m, after.CurrentSpend);
+    }
+
+    [Fact]
+    public async Task GetBudgetStatus_WhenCacheIsDown_FallsBackToDatabase()
+    {
+        var context = GetInMemoryDbContext();
+        var userId = 1;
+
+        context.Categories.Add(new Category { Id = 1, Name = "Groceries" });
+        context.Accounts.Add(new Account { Id = 1, UserId = userId, Name = "Checking" });
+        context.Budgets.Add(new Budget { Id = 1, UserId = userId, CategoryId = 1, AmountLimit = 300m });
+        context.Transactions.Add(new Transaction
+        {
+            Id = 1,
+            AccountId = 1,
+            CategoryId = 1,
+            Amount = 75m,
+            Type = "Expense",
+            Date = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        var controller = SetupControllerWithCustomCache(context, new ThrowingCache(), userId);
+
+        var result = await controller.GetBudgetStatus();
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var budgets = Assert.IsAssignableFrom<IEnumerable<BudgetResponseDto>>(okResult.Value);
+        var budget = Assert.Single(budgets);
+        Assert.Equal(75m, budget.CurrentSpend);
+    }
+
+    [Fact]
+    public async Task CreateBudget_WhenCacheIsDown_ReturnsCreatedAtActionResult()
+    {
+        var context = GetInMemoryDbContext();
+        var userId = 1;
+
+        context.Categories.Add(new Category { Id = 1, Name = "Groceries" });
+        await context.SaveChangesAsync();
+
+        var controller = SetupControllerWithCustomCache(context, new ThrowingCache(), userId);
+        var dto = new CreateBudgetDto
+        {
+            CategoryId = 1,
+            MonthlyLimit = 500m
+        };
+
+        var result = await controller.CreateBudget(dto);
+
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var response = Assert.IsType<BudgetResponseDto>(createdResult.Value);
+        Assert.Equal(1, response.CategoryId);
+        Assert.Equal(500m, response.MonthlyLimit);
     }
 }
